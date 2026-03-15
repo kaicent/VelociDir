@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="58 95 360 360" width="100%" height="100%">
+  <defs>
+    <!-- Deep shadow for the Folder (Expanded bounds to prevent clipping/harsh lines) -->
+    <filter id="folderShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="12" stdDeviation="10" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+
+    <!-- Sharp, glowing shadow for the Geometric Raptor (Expanded bounds) -->
+    <filter id="raptorShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- ========================================== -->
+  <!-- 1. THE "DIR" (Dual-Pane Folder Background) -->
+  <!-- ========================================== -->
+  <g filter="url(#folderShadow)">
+    <!-- Folder Back Tab (Muted Brown) -->
+    <path d="M 136 170 H 220 L 240 190 H 376 A 12 12 0 0 1 388 202 V 358 A 12 12 0 0 1 376 370 H 136 A 12 12 0 0 1 124 358 V 182 A 12 12 0 0 1 136 170 Z" fill="#A68A61" />
+    
+    <!-- Folder Front Cover (Light Brown) -->
+    <rect x="116" y="210" width="280" height="160" rx="12" fill="#D2B48C" />
+    <rect x="116" y="210" width="280" height="4" rx="2" fill="#E6CEAB" opacity="0.5"/> <!-- Edge Highlight -->
+
+    <!-- Center Line (Representing the Dual-Pane layout) -->
+    <line x1="256" y1="210" x2="256" y2="370" stroke="#A68A61" stroke-width="4" opacity="0.3" stroke-dasharray="8 6"/>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- 2. THE "VELOCI" (Geometric Branching Raptor) -->
+  <!-- ========================================== -->
+  <!-- This Raptor is drawn entirely using strictly 45-degree and 90-degree 
+       angles to mimic an expanding directory tree or a circuit board! -->
+  <g filter="url(#raptorShadow)">
+    
+    <!-- Main Raptor Body / Branching Path (Pastel Green) -->
+    <path d="M 96 280 
+             H 176 
+             L 216 240 
+             H 256 
+             L 296 200 
+             H 356 
+             V 220 
+             H 316 
+             L 276 260 
+             V 320 
+             L 296 340 
+             H 336" 
+          fill="none" stroke="#77DD77" stroke-width="12" 
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Raptor Arm / File Sub-branch -->
+    <path d="M 276 260 H 316 V 280" 
+          fill="none" stroke="#77DD77" stroke-width="12" 
+          stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Abstract Raptor Eye (Floating inside the geometric snout) -->
+    <circle cx="330" cy="210" r="5" fill="#77DD77"/>
+
+    <!-- ========================================== -->
+    <!-- 3. THE "NODES" (Directory Files & Accents)   -->
+    <!-- ========================================== -->
+    
+    <!-- Node 1: The Tail (Pastel Red - Delete/Root Branch) -->
+    <circle cx="96" cy="280" r="10" fill="#FF6961" stroke="#252526" stroke-width="4"/>
+    <circle cx="96" cy="280" r="16" fill="none" stroke="#FF6961" stroke-width="2" opacity="0.5"/>
+
+    <!-- Node 2: The Shoulder (Muted Brown - Anchored exactly on the dual-pane center line) -->
+    <circle cx="256" cy="240" r="8" fill="#A68A61" stroke="#252526" stroke-width="4"/>
+
+    <!-- Node 3: The Snout/Jaw (Pastel Yellow - Warning/Console terminal) -->
+    <circle cx="356" cy="220" r="10" fill="#FDFD96" stroke="#252526" stroke-width="4"/>
+    <circle cx="356" cy="220" r="16" fill="none" stroke="#FDFD96" stroke-width="2" opacity="0.5"/>
+
+    <!-- Node 4: The Arm Sub-branch (Light Brown - Standard File) -->
+    <circle cx="316" cy="280" r="8" fill="#D2B48C" stroke="#252526" stroke-width="4"/>
+
+    <!-- Node 5: The Foot/Execution point (Pastel Green - Active File) -->
+    <circle cx="336" cy="340" r="10" fill="#77DD77" stroke="#252526" stroke-width="4"/>
+    <circle cx="336" cy="340" r="16" fill="none" stroke="#77DD77" stroke-width="2" opacity="0.5"/>
+
+  </g>
+</svg>
