@@ -13,6 +13,8 @@ pub struct FileEntry {
     modified: u64,
 }
 
+/// Checks if a path is valid for file system operations.
+/// Prevents directory traversal and handles virtual paths like 'root'.
 fn is_valid_path(path: &str) -> bool {
     if path.is_empty() || path == "root" {
         return false;
@@ -24,6 +26,7 @@ fn is_valid_path(path: &str) -> bool {
     true
 }
 
+/// Reads the contents of a directory and returns a sorted list of files and folders.
 #[tauri::command]
 async fn read_directory(path: String) -> Result<Vec<FileEntry>, String> {
     println!("Backend: read_directory: path={}", path);
@@ -57,6 +60,7 @@ async fn read_directory(path: String) -> Result<Vec<FileEntry>, String> {
     Ok(file_entries)
 }
 
+/// Reads the first 10KB of a file to provide a quick preview without loading large assets into memory.
 #[tauri::command]
 async fn read_file_preview(path: String) -> Result<String, String> {
     println!("Backend: read_file_preview: path={}", path);
@@ -106,6 +110,8 @@ fn copy_recursive(source: impl AsRef<Path>, destination: impl AsRef<Path>) -> Re
     Ok(())
 }
 
+/// Transfers a file or directory from source to destination.
+/// Handles cross-drive moves by performing a recursive copy followed by a deletion.
 #[tauri::command]
 async fn transfer_file(source: String, destination: String, is_move: bool) -> Result<(), String> {
     println!("Backend: transfer_file: source={}, destination={}, is_move={}", source, destination, is_move);
@@ -148,6 +154,7 @@ async fn transfer_file(source: String, destination: String, is_move: bool) -> Re
     Ok(())
 }
 
+/// Opens a native terminal instance (PowerShell on Windows) at the specified directory.
 #[tauri::command]
 async fn open_terminal(path: String) -> Result<(), String> {
     if !is_valid_path(&path) {
@@ -177,6 +184,7 @@ async fn open_terminal(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Retrieves a list of available storage drives on the system.
 #[tauri::command]
 async fn get_available_drives() -> Result<Vec<FileEntry>, String> {
     let mut drives = Vec::new();
@@ -208,6 +216,7 @@ async fn get_available_drives() -> Result<Vec<FileEntry>, String> {
     Ok(drives)
 }
 
+/// Renames a file or directory on the disk.
 #[tauri::command]
 async fn rename_item(old_path: String, new_path: String) -> Result<(), String> {
     if !is_valid_path(&old_path) || !is_valid_path(&new_path) {
@@ -216,6 +225,7 @@ async fn rename_item(old_path: String, new_path: String) -> Result<(), String> {
     fs::rename(old_path, new_path).map_err(|e| e.to_string())
 }
 
+/// Opens a file or launches a directory using the system default application.
 #[tauri::command]
 async fn open_item(path: String) -> Result<(), String> {
     if !is_valid_path(&path) {
@@ -241,6 +251,7 @@ async fn open_item(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Executes a file with elevated (Administrator) privileges on Windows.
 #[tauri::command]
 async fn run_as_admin(path: String) -> Result<(), String> {
     if !is_valid_path(&path) {
@@ -259,6 +270,7 @@ async fn run_as_admin(path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Moves an item to the system trash/recycle bin.
 #[tauri::command]
 async fn delete_item(path: String) -> Result<(), String> {
     if !is_valid_path(&path) {
@@ -291,6 +303,7 @@ async fn create_item(path: String, is_dir: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// Retrieves metadata for a single file or directory.
 #[tauri::command]
 async fn get_file_info(path: String) -> Result<FileEntry, String> {
     println!("Backend: get_file_info: path={}", path);

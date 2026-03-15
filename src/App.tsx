@@ -304,6 +304,11 @@ const Modal = ({ state, onClose }: { state: ModalState; onClose: () => void }) =
 };
 
 // FIX 2: Visual drop target highlight
+/**
+ * Recursive Tree Component
+ * Handles rendering of the directory hierarchy, drag-and-drop orchestration,
+ * and contextual navigation.
+ */
 const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, activePath, selectedFilePaths, metadataMode, onDragStart, onContextMenu, onDrop, searchQuery, sortField, sortAsc, refreshCounter, onError, dropTargetPath, onDragEnterPath, onDragLeavePath, folderColors, expandedPaths, onToggleExpand, isFocused, paneId, showThumbnails, lastScrollPath, lastScrollBlock, onScrollComplete }: any) => {
   const isExpanded = Array.isArray(expandedPaths) ? expandedPaths.includes(entry.path) : false;
   const [children, setChildren] = useState<FileEntry[]>([]);
@@ -420,8 +425,8 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
   }, [lastScrollPath, lastScrollBlock, paneId, entry.path, onScrollComplete]);
 
   // Expose methods on DOM node for keyboard navigation
-  // __selectOnly  → select without toggling expansion (used by Up/Down)
-  // __expandEntry → expand without toggling back (used by Right)
+  // __selectOnly  -> select without toggling expansion (used by Up/Down)
+  // __expandEntry -> expand without toggling back (used by Right)
   useEffect(() => {
     if (itemRef.current) {
       (itemRef.current as any).__selectOnly = () => onSelect(entry);
@@ -447,7 +452,7 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
         ref={itemRef}
         draggable={!entry.path.endsWith(":\\")}
         style={{ paddingLeft: `${depth * 48}px` } as React.CSSProperties}
-        // FIX 1: Hierarchy attributes for keyboard navigation
+        // Hierarchy attributes for keyboard navigation
         data-path={entry.path}
         data-depth={String(depth)}
         data-parent={parentPath}
@@ -485,7 +490,7 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
             if (onError) onError("Open Failed", `Could not open ${entry.name}: ${err}`);
           });
         }}
-        // FIX 3: Reliable drop zone — track enter/leave for visual feedback
+        // Reliable drop zone - track enter/leave for visual feedback
         onDragEnter={(e) => {
           if (entry.is_dir) {
             e.preventDefault();
@@ -606,7 +611,7 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
   const [showSortOptions, setShowSortOptions] = useState(false);
   const [isEditingPath, setIsEditingPath] = useState(false);
   const [editPathValue, setEditPathValue] = useState("");
-  // FIX 3: Track which path is currently being dragged over for visual feedback
+  // Track which path is currently being dragged over for visual feedback
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1399,7 +1404,7 @@ function AppContent() {
     return () => window.removeEventListener("click", handleGlobalClick);
   }, []);
 
-  // FIX 5: Hierarchy-aware keyboard navigation
+  // Hierarchy-aware keyboard navigation
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA" || modal.visible) return;
