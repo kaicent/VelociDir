@@ -19,7 +19,7 @@ While traditional file explorers are clunky and limited, VelociDir is designed f
 
 ## Download
  
- You can download the latest standalone executable for Windows from the [Releases](https://github.com/kaicent/VelociDir/releases) page.
+ You can download the latest standalone executable for Windows/Mac and Linux from the [Releases](https://github.com/kaicent/VelociDir/releases) page.
  
  1. Go to the [Latest Release](https://github.com/kaicent/VelociDir/releases/latest).
  2. Under **Assets**, download the `.exe` or `.msi` file.
