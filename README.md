@@ -1,3 +1,5 @@
+<img src="https://github.com/kaicent/VelociDir/blob/main/src-tauri/icons/128x128@2x.png?raw=true" width="300">
+
 # VelociDir
 
 **VelociDir** is a high-performance, premium multi-pane file explorer built for power users. Engineered with the speed of **Rust** and the fluidity of **React**, it offers a browser-like experience for your local filesystem with advanced window management and rich media integration.
