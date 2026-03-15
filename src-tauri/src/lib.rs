@@ -26,7 +26,7 @@ fn is_valid_path(path: &str) -> bool {
         return false;
     }
     if path == "root" {
-        return true;
+        return false;
     }
     // Prevent directory traversal attacks
     if path.contains("..") {

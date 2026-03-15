@@ -186,26 +186,33 @@ const getFileIcon = (entry: FileEntry, isActive: boolean, size: number = 16, cus
 };
 
 const sanitizeTabs = (tabs: TabState[]): TabState[] => {
-  return tabs.map(tab => ({
-    ...tab,
-    selectedFilePaths: tab.panes.some(p => p.id === tab.lastSelectedFilePath?.split(":")[0]) // This is a bit complex, let's simplify
-      ? tab.selectedFilePaths
-      : tab.selectedFilePaths.filter(p => p !== "root"),
-    panes: tab.panes.map(pane => {
-      const sanitizedPane = {
-        ...pane,
-        lastScrollPath: "",
-        lastScrollBlock: undefined
-      };
-      if (pane.path === "root") {
-        return {
-          ...sanitizedPane,
-          searchQuery: "",
+  return tabs.map(tab => {
+    // Robustly handle selected paths: never allow virtual "root" in selectable file paths
+    const selectedFilePaths = (tab.selectedFilePaths || []).filter(p => p && p !== "root");
+    
+    // Also clear lastSelectedFilePath if it points to root
+    const lastSelectedFilePath = tab.lastSelectedFilePath === "root" ? null : tab.lastSelectedFilePath;
+
+    return {
+      ...tab,
+      selectedFilePaths,
+      lastSelectedFilePath,
+      panes: (tab.panes || []).map(pane => {
+        const sanitizedPane = {
+          ...pane,
+          lastScrollPath: "",
+          lastScrollBlock: undefined
         };
-      }
-      return sanitizedPane;
-    })
-  }));
+        if (pane.path === "root") {
+          return {
+            ...sanitizedPane,
+            searchQuery: "",
+          };
+        }
+        return sanitizedPane;
+      })
+    };
+  });
 };
 
 let SEP = "\\"; // Default for initialization, updated on mount
@@ -1299,9 +1306,13 @@ function AppContent() {
   };
 
   const renameItem = async (entry: FileEntry) => {
+    if (!entry.path || entry.path === "root") return;
     showPrompt("Rename Item", `Enter new name for ${entry.name}:`, entry.name, async (newName) => {
       if (newName && newName !== entry.name) {
         const lastSep = entry.path.lastIndexOf(SEP);
+        // If there is no separator (e.g. root-level drive but it shouldn't be renamed anyway), 
+        // we'll handle it gracefully.
+        if (lastSep === -1) return;
         const dir = entry.path.substring(0, lastSep);
         const newPath = `${dir}${SEP}${newName}`;
         try {
@@ -1331,6 +1342,7 @@ function AppContent() {
   };
 
   const deleteItem = async (entry: FileEntry) => {
+    if (!entry.path || entry.path === "root") return;
     showConfirm("Delete Item", `Are you sure you want to permanently delete ${entry.name}?`, async () => {
       try {
         await invoke("delete_item", { path: entry.path });
