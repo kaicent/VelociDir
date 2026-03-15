@@ -13,11 +13,20 @@ pub struct FileEntry {
     modified: u64,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct SystemInfo {
+    os: String,
+    sep: String,
+}
+
 /// Checks if a path is valid for file system operations.
 /// Prevents directory traversal and handles virtual paths like 'root'.
 fn is_valid_path(path: &str) -> bool {
-    if path.is_empty() || path == "root" {
+    if path.is_empty() {
         return false;
+    }
+    if path == "root" {
+        return true;
     }
     // Prevent directory traversal attacks
     if path.contains("..") {
@@ -154,7 +163,7 @@ async fn transfer_file(source: String, destination: String, is_move: bool) -> Re
     Ok(())
 }
 
-/// Opens a native terminal instance (PowerShell on Windows) at the specified directory.
+/// Opens a native terminal instance at the specified directory.
 #[tauri::command]
 async fn open_terminal(path: String) -> Result<(), String> {
     if !is_valid_path(&path) {
@@ -171,15 +180,33 @@ async fn open_terminal(path: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     {
-        // Avoid shell injection on Unix-like systems
-        let escaped_path = path.replace("'", "'\\''");
-        Command::new("sh")
-            .arg("-c")
-            .arg(format!("cd '{}' && exec $SHELL", escaped_path))
+        Command::new("open")
+            .arg("-a")
+            .arg("Terminal")
+            .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Try common linux terminals
+        let terminals = ["gnome-terminal", "konsole", "xfce4-terminal", "xterm"];
+        let mut spawned = false;
+        for term in terminals {
+            if Command::new(term)
+                .arg("--working-directory")
+                .arg(&path)
+                .spawn()
+                .is_ok() {
+                spawned = true;
+                break;
+            }
+        }
+        if !spawned {
+            return Err("No compatible terminal found".to_string());
+        }
     }
     Ok(())
 }
@@ -216,6 +243,14 @@ async fn get_available_drives() -> Result<Vec<FileEntry>, String> {
     Ok(drives)
 }
 
+/// Returns basic system information like the OS and path separator.
+#[tauri::command]
+async fn get_system_info() -> Result<SystemInfo, String> {
+    let os = std::env::consts::OS.to_string();
+    let sep = std::path::MAIN_SEPARATOR.to_string();
+    Ok(SystemInfo { os, sep })
+}
+
 /// Renames a file or directory on the disk.
 #[tauri::command]
 async fn rename_item(old_path: String, new_path: String) -> Result<(), String> {
@@ -241,9 +276,16 @@ async fn open_item(path: String) -> Result<(), String> {
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     {
         Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
             .arg(&path)
             .spawn()
             .map_err(|e| e.to_string())?;
@@ -339,6 +381,7 @@ pub fn run() {
             read_directory,
             read_file_preview,
             get_file_info,
+            get_system_info,
             transfer_file,
             open_terminal,
             get_available_drives,

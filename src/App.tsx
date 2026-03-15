@@ -116,6 +116,11 @@ interface ClipboardState {
   action: "copy" | "cut";
 }
 
+interface SystemInfo {
+  os: string;
+  sep: string;
+}
+
 interface ModalState {
   visible: boolean;
   type: "alert" | "confirm" | "prompt";
@@ -127,9 +132,10 @@ interface ModalState {
 
 // --- Utils ---
 
-const getFileIcon = (entry: FileEntry, isActive: boolean, size: number = 16, customColor?: string, showThumbnails?: boolean) => {
+const getFileIcon = (entry: FileEntry, isActive: boolean, size: number = 16, customColor?: string, showThumbnails?: boolean, showMargin: boolean = true) => {
+  const marginClass = showMargin ? "mr-3" : "";
   if (entry.path.endsWith(":\\")) {
-    return <HardDrive size={size} className={`mr-3 ${isActive ? 'text-accent-green' : 'text-accent-yellow'}`} />;
+    return <HardDrive size={size} className={`${marginClass} ${isActive ? 'text-accent-green' : 'text-accent-yellow'}`} />;
   }
   const ext = entry.name.split(".").pop()?.toLowerCase() || "";
 
@@ -139,7 +145,7 @@ const getFileIcon = (entry: FileEntry, isActive: boolean, size: number = 16, cus
     if (isImage || isVideo) {
       const src = convertFileSrc(entry.path);
       return (
-        <div className="mr-3 w-4 h-4 rounded overflow-hidden shrink-0 bg-background-main/50 border border-white/5 flex items-center justify-center">
+        <div className={`${marginClass} w-4 h-4 rounded overflow-hidden shrink-0 bg-background-main/50 border border-white/5 flex items-center justify-center`}>
           {isImage ? (
             <img src={src} loading="lazy" className="w-full h-full object-cover" />
           ) : (
@@ -151,32 +157,32 @@ const getFileIcon = (entry: FileEntry, isActive: boolean, size: number = 16, cus
   }
 
   if (["zip", "rar", "7z", "tar", "gz"].includes(ext)) {
-    return <Archive size={size} className="mr-3 text-[#ffb3b3]" />;
+    return <Archive size={size} className={`${marginClass} text-[#ffb3b3]`} />;
   }
 
   if (entry.is_dir) {
-    if (isActive) return <Folder size={size} className="mr-3 text-accent-green" />;
-    if (customColor) return <Folder size={size} className="mr-3" style={{ color: customColor }} />;
-    return <Folder size={size} className="mr-3 text-muted" />;
+    if (isActive) return <Folder size={size} className={`${marginClass} text-accent-green`} />;
+    if (customColor) return <Folder size={size} className={marginClass} style={{ color: customColor }} />;
+    return <Folder size={size} className={`${marginClass} text-muted`} />;
   }
 
   if (ext === "pdf") {
-    return <FileText size={size} className="mr-3 text-[#ff9999]" />;
+    return <FileText size={size} className={`${marginClass} text-[#ff9999]`} />;
   }
 
   if (["txt", "md", "js", "ts", "py", "rs", "json", "html", "css"].includes(ext)) {
-    return <FileText size={size} className="mr-3 text-[#f8f8f8]" />;
+    return <FileText size={size} className={`${marginClass} text-[#f8f8f8]`} />;
   }
 
   if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico"].includes(ext)) {
-    return <ImageIcon size={size} className="mr-3 text-[#add8e6]" />;
+    return <ImageIcon size={size} className={`${marginClass} text-[#add8e6]`} />;
   }
 
   if (["mp4", "webm", "ogg", "mov", "avi"].includes(ext)) {
-    return <Play size={size} className="mr-3 text-[#ffffd0]" />;
+    return <Play size={size} className={`${marginClass} text-[#ffffd0]`} />;
   }
 
-  return <FileText size={size} className={`mr-3 ${isActive ? 'text-accent-green' : 'text-primary'}`} />;
+  return <FileText size={size} className={`${marginClass} ${isActive ? 'text-accent-green' : 'text-primary'}`} />;
 };
 
 const sanitizeTabs = (tabs: TabState[]): TabState[] => {
@@ -202,17 +208,19 @@ const sanitizeTabs = (tabs: TabState[]): TabState[] => {
   }));
 };
 
+let SEP = "\\"; // Default for initialization, updated on mount
+
 const getParentPaths = (path: string): string[] => {
   if (!path || path === "root") return [];
   const parents: string[] = [];
   let current = path;
-  while (current.includes("\\")) {
-    const lastSlash = current.lastIndexOf("\\");
+  while (current.includes(SEP)) {
+    const lastSlash = current.lastIndexOf(SEP);
     if (lastSlash === -1) break;
     current = current.substring(0, lastSlash);
-    if (current.endsWith(":")) current += "\\";
+    if (current.endsWith(":") && SEP === "\\") current += "\\";
     parents.push(current);
-    if (current.endsWith("\\")) break;
+    if (current.endsWith(SEP)) break;
   }
   return parents.reverse();
 };
@@ -604,7 +612,7 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
   );
 };
 
-function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, onContextMenu, onSearch, onSort, onToggleThumbnails, refreshCounter, onError, onFocus, isFocused, selectedFilePaths, folderColors, expandedPaths, onToggleExpand, onScrollComplete }: any) {
+function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, onContextMenu, onSearch, onSort, onToggleThumbnails, refreshCounter, onError, onFocus, isFocused, selectedFilePaths, folderColors, expandedPaths, onToggleExpand, onScrollComplete, systemInfo }: any) {
   const [drives, setDrives] = useState<FileEntry[]>([]);
   const [isThisPCOpen, setIsThisPCOpen] = useState(true);
   const [metadataMode, setMetadataMode] = useState<"size" | "date">("size");
@@ -636,7 +644,7 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
     }
   };
 
-  const breadcrumbs = pane.path === "root" ? ["This PC"] : ["This PC", ...pane.path.split("\\").filter(Boolean)];
+  const breadcrumbs = pane.path === "root" ? [systemInfo.os === "windows" ? "This PC" : "Computer"] : [systemInfo.os === "windows" ? "This PC" : "Computer", ...pane.path.split(SEP).filter(Boolean)];
 
   // FIX 3: Pane background drop — only fires when NOT landing on a TreeItem (they stopPropagation)
   const handlePaneDrop = (e: React.DragEvent) => {
@@ -855,7 +863,7 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
           >
             <ChevronDown size={14} className={`mr-1 transition-transform ${isThisPCOpen ? '' : '-rotate-90'}`} />
             <Monitor size={14} className="mr-2" />
-            <span className="font-bold uppercase tracking-widest text-[10px]">This PC</span>
+            <span className="font-bold uppercase tracking-widest text-[10px]">{systemInfo.os === "windows" ? "This PC" : "Computer"}</span>
           </div>
           {isThisPCOpen && (
             <div className="relative ml-2 border-l border-muted/10">
@@ -941,7 +949,9 @@ function PreviewPane({ selectedFilePaths = [], folderColors }: { selectedFilePat
     const isVideo = ["mp4", "webm", "ogg", "mov", "avi"].includes(ext);
 
     if (isImage || isVideo) {
-      setMediaUrl(convertFileSrc(selectedFile.path));
+      const src = convertFileSrc(selectedFile.path);
+      console.log("PreviewPane: mediaUrl set to", src);
+      setMediaUrl(src);
       setPreview("");
     } else {
       setMediaUrl("");
@@ -978,7 +988,7 @@ function PreviewPane({ selectedFilePaths = [], folderColors }: { selectedFilePat
         <div className="flex flex-col items-center text-center w-full">
           <div className="w-20 h-20 bg-background-pane rounded-2xl flex items-center justify-center shadow-2xl mb-6 border border-muted/10 relative group">
             <div className="absolute inset-0 bg-accent-green/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            {getFileIcon(selectedFile, false, 36, folderColors?.[selectedFile.path])}
+            {getFileIcon(selectedFile, false, 36, folderColors?.[selectedFile.path], true, false)}
           </div>
           <h2 className="text-sm font-bold text-primary truncate w-full px-4" title={selectedFile.name}>{formatFileName(selectedFile.name, selectedFile.is_dir)}</h2>
           <p className="text-[9px] text-muted uppercase tracking-[0.2em] mt-2 opacity-40">{selectedFile.is_dir ? "DIRECTORY_NODE" : "FILE_STREAM"}</p>
@@ -1123,6 +1133,15 @@ function AppContent() {
       return {};
     }
   });
+  const [systemInfo, setSystemInfo] = useState<SystemInfo>({ os: "windows", sep: "\\" });
+
+  useEffect(() => {
+    invoke("get_system_info").then((info: any) => {
+      console.log("System Info received:", info);
+      setSystemInfo(info);
+      SEP = info.sep;
+    }).catch(err => console.error("Failed to get system info", err));
+  }, []);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [renamingName, setRenamingName] = useState("");
   const [focusedPaneId, setFocusedPaneId] = useState<string>("pane1");
@@ -1282,8 +1301,9 @@ function AppContent() {
   const renameItem = async (entry: FileEntry) => {
     showPrompt("Rename Item", `Enter new name for ${entry.name}:`, entry.name, async (newName) => {
       if (newName && newName !== entry.name) {
-        const dir = entry.path.substring(0, entry.path.lastIndexOf("\\"));
-        const newPath = `${dir}\\${newName}`;
+        const lastSep = entry.path.lastIndexOf(SEP);
+        const dir = entry.path.substring(0, lastSep);
+        const newPath = `${dir}${SEP}${newName}`;
         try {
           await invoke("rename_item", { oldPath: entry.path, newPath });
           setRefreshCounter(prev => prev + 1);
@@ -1299,7 +1319,7 @@ function AppContent() {
     if (!clipboard || !targetDir || targetDir === "root") return;
     try {
       for (const entry of clipboard.entries) {
-        const dest = `${targetDir}\\${entry.name}`;
+        const dest = targetDir.endsWith(SEP) ? `${targetDir}${entry.name}` : `${targetDir}${SEP}${entry.name}`;
         await invoke("transfer_file", { source: entry.path, destination: dest, isMove: clipboard.action === "cut" });
       }
       if (clipboard.action === "cut") setClipboard(null);
@@ -1385,7 +1405,7 @@ function AppContent() {
         next[paneId] = panePaths;
       } else {
         // Recursive collapse: remove this path and all its descendants
-        next[paneId] = panePaths.filter(p => p !== path && !p.startsWith(path + "\\"));
+        next[paneId] = panePaths.filter(p => p !== path && !p.startsWith(path + SEP));
       }
       return next;
     });
@@ -1416,13 +1436,13 @@ function AppContent() {
 
       // Ctrl+C
       if (e.ctrlKey && e.key.toLowerCase() === 'c' && selected) {
-        const entries = activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split('\\').pop() || '', is_dir: false, size: 0, modified: 0 }));
+        const entries = activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 }));
         setClipboard({ entries, action: "copy" });
         return;
       }
       // Ctrl+X
       if (e.ctrlKey && e.key.toLowerCase() === 'x' && selected) {
-        const entries = activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split('\\').pop() || '', is_dir: false, size: 0, modified: 0 }));
+        const entries = activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 }));
         setClipboard({ entries, action: "cut" });
         return;
       }
@@ -1706,8 +1726,8 @@ function AppContent() {
                     onError={showAlert}
                     onDrop={(f: FileEntry, p: string, isMove: boolean = false) => {
                       if (!p || p === "root") return;
-                      if (f.path === p || p.startsWith(f.path + "\\")) return;
-                      const destination = p.endsWith("\\") ? `${p}${f.name}` : `${p}\\${f.name}`;
+                      if (f.path === p || p.startsWith(f.path + SEP)) return;
+                      const destination = p.endsWith(SEP) ? `${p}${f.name}` : `${p}${SEP}${f.name}`;
                       invoke("transfer_file", { source: f.path, destination, isMove })
                         .then(() => setRefreshCounter(prev => prev + 1))
                         .catch(err => showAlert("Transfer Error", String(err)));
@@ -1717,6 +1737,7 @@ function AppContent() {
                     folderColors={folderColors}
                     expandedPaths={expandedPaths[pane.id] || []}
                     onToggleExpand={togglePathExpansion}
+                    systemInfo={systemInfo}
                   />
                 ) : (
                   <PreviewPane selectedFilePaths={activeTab.selectedFilePaths} folderColors={folderColors} />
@@ -1786,13 +1807,13 @@ function AppContent() {
                 </div>
                 <div className="h-[1px] bg-muted/10 mx-1 my-1" />
                 <div
-                  onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split('\\').pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "copy" }); setContextMenu({ ...contextMenu, visible: false }); }}
+                  onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "copy" }); setContextMenu({ ...contextMenu, visible: false }); }}
                   className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
                 >
                   <Copy size={12} /> Copy
                 </div>
                 <div
-                  onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split('\\').pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "cut" }); setContextMenu({ ...contextMenu, visible: false }); }}
+                  onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "cut" }); setContextMenu({ ...contextMenu, visible: false }); }}
                   className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight opacity-70"
                 >
                   <Copy size={12} /> Cut
