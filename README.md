@@ -33,7 +33,7 @@ While traditional file explorers are clunky and limited, VelociDir is designed f
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/your-username/velocidir.git
+    git clone https://github.com/kaicent/VelociDir
     cd velocidir
     ```
 
