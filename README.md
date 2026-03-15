@@ -1,7 +1,10 @@
 <img src="https://github.com/kaicent/VelociDir/blob/main/src-tauri/icons/128x128@2x.png?raw=true" width="300">
 
 # VelociDir
-
+ 
+> [!WARNING]
+> **VelociDir is under heavy development.** It operates with full system permissions to manage your files. Use with caution. Current builds are only tested on **Windows**.
+ 
 **VelociDir** is a high-performance, premium multi-pane file explorer built for power users. Engineered with the speed of **Rust** and the fluidity of **React**, it offers a browser-like experience for your local filesystem with advanced window management and rich media integration.
 
 ## Why VelociDir?
@@ -14,7 +17,15 @@ While traditional file explorers are clunky and limited, VelociDir is designed f
 - **Modern UX**: A premium glassmorphism design system with smooth animations, responsive scaling, and high-DPI support.
 - **Real-Time Filtering**: Instant search and highlighting within specific folders to find what you need in milliseconds.
 
-## Tech Stack
+## Download
+ 
+ You can download the latest standalone executable for Windows from the [Releases](https://github.com/kaicent/VelociDir/releases) page.
+ 
+ 1. Go to the [Latest Release](https://github.com/kaicent/VelociDir/releases/latest).
+ 2. Under **Assets**, download the `.exe` or `.msi` file.
+ 3. Run the installer or standalone file to start VelociDir.
+ 
+ ## Development Setup
 
 - **Backend**: [Tauri v2](https://tauri.app/) (Rust)
 - **Frontend**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/) + [TypeScript](https://www.typescriptlang.org/)
@@ -23,7 +34,7 @@ While traditional file explorers are clunky and limited, VelociDir is designed f
 
 ## Getting Started
 
-### Prerequisites
+### Prerequisites for Development
 
 - [Rust & Cargo](https://www.rust-lang.org/tools/install)
 - [Node.js](https://nodejs.org/) (Version 22.12+ recommended)
