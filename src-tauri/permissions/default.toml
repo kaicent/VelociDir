@@ -1,0 +1,16 @@
+[[permission]]
+identifier = "allow-all"
+description = "Allow all commands in the main app"
+commands.allow = [
+  "read_directory",
+  "read_file_preview",
+  "transfer_file",
+  "open_terminal",
+  "get_available_drives",
+  "rename_item",
+  "open_item",
+  "run_as_admin",
+  "delete_item",
+  "create_item",
+  "get_file_info"
+]

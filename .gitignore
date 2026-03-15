@@ -1,0 +1,31 @@
+# node.js
+node_modules/
+dist/
+.npm
+*.log
+
+# rust
+src-tauri/target/
+**/*.rs.bk
+
+# tauri
+src-tauri/binaries/
+src-tauri/gen/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# local env
+.env
+.env.local

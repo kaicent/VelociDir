@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-main: #252526;
+  --color-background-pane: #1E1E1E;
+  --color-primary: #D2B48C;
+  --color-muted: #A68A61;
+  --color-accent-yellow: #FDFD96;
+  --color-accent-green: #77DD77;
+  --color-accent-red: #FF6961;
+}
+
+@layer base {
+  :root {
+    background-color: #1E1E1E;
+    color: #D2B48C;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  }
+
+  body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #1E1E1E;
+  }
+
+  #root {
+    height: 100vh;
+  }
+}
+
+/* Custom scrollbar for that premium feel */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #1E1E1E;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2D2D2D;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #3D3D3D;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #2D2D2D #1E1E1E;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+.pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.min-w-max {
+  min-width: max-content;
+}
