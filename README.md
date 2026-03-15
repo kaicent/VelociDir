@@ -17,6 +17,8 @@ While traditional file explorers are clunky and limited, VelociDir is designed f
 - **Modern UX**: A premium glassmorphism design system with smooth animations, responsive scaling, and high-DPI support.
 - **Real-Time Filtering**: Instant search and highlighting within specific folders to find what you need in milliseconds.
 
+<img src="https://github.com/kaicent/VelociDir/blob/main/public/OVERVIEW.jpg?raw=true">
+
 ## Download
  
  You can download the latest standalone executable for Windows/Mac and Linux from the [Releases](https://github.com/kaicent/VelociDir/releases) page.
