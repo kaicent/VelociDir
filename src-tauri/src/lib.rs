@@ -1,5 +1,7 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+use rayon::prelude::*;
 use std::process::Command;
 use serde::{Serialize, Deserialize};
 use std::io::{Read, BufReader};
@@ -373,6 +375,64 @@ async fn get_file_info(path: String) -> Result<FileEntry, String> {
     Ok(info)
 }
 
+/// Recursively searches for files and folders matching the query.
+/// Optimized with skip directories and parallelization.
+fn search_optimized(base_path: &Path, query: &str) -> Vec<FileEntry> {
+    let query_lower = query.to_lowercase();
+    let skip_dirs = ["node_modules", ".git", "target", "dist", ".next", ".cache"];
+
+    // Walk the directory and collect paths first (relatively fast compared to metadata/matching)
+    let paths: Vec<PathBuf> = WalkDir::new(base_path)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !skip_dirs.iter().any(|&d| name == d)
+        })
+        .filter_map(|e| e.ok())
+        .map(|e| e.path().to_path_buf())
+        .collect();
+
+    // Process matching and metadata in parallel
+    paths.into_par_iter()
+        .filter_map(|path| {
+            let name = path.file_name()?.to_string_lossy().to_string();
+            if name.to_lowercase().contains(&query_lower) {
+                if let Ok(metadata) = fs::metadata(&path) {
+                    return Some(FileEntry {
+                        name,
+                        path: path.to_string_lossy().to_string(),
+                        is_dir: metadata.is_dir(),
+                        size: metadata.len(),
+                        modified: metadata.modified()
+                            .map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs())
+                            .unwrap_or(0),
+                    });
+                }
+            }
+            None
+        })
+        .collect()
+}
+
+/// Command to initiate a recursive search from a base path.
+#[tauri::command]
+async fn search_files(path: String, query: String) -> Result<Vec<FileEntry>, String> {
+    println!("Backend: search_files: path={}, query={}", path, query);
+    if !is_valid_path(&path) {
+        return Err("Invalid or virtual path".to_string());
+    }
+    
+    let base_path = Path::new(&path);
+    if !base_path.exists() {
+        return Err("Path does not exist".to_string());
+    }
+
+    let results = search_optimized(base_path, &query);
+    
+    println!("Backend: search_files success, found={}", results.len());
+    Ok(results)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -389,7 +449,8 @@ pub fn run() {
             open_item,
             run_as_admin,
             delete_item,
-            create_item
+            create_item,
+            search_files
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

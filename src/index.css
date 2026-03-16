@@ -82,3 +82,61 @@
 .min-w-max {
   min-width: max-content;
 }
+
+@keyframes knight-rider {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: -100%; }
+}
+
+.search-scanner-bar {
+  position: absolute;
+  bottom: 0px;
+  left: 0;
+  height: 2px;
+  width: 100px;
+  background: linear-gradient(to right, transparent, #77DD77, transparent);
+  animation: knight-rider 2s infinite ease-in-out;
+  filter: blur(1px) drop-shadow(0 0 5px #77DD77);
+  z-index: 10;
+}
+
+@keyframes border-rotate {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.search-border-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.search-border-animated::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(transparent 70%, #77DD77 100%);
+  animation: border-rotate 2s linear infinite;
+  z-index: 0;
+}
+
+.search-input-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 0 8px;
+}
+
+.search-input-wrapper.search-active {
+  background: #1E1E1E !important;
+  margin: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  border-radius: 3px;
+}

@@ -86,6 +86,8 @@ interface PaneState {
   flex: number;
   type: "explorer" | "preview";
   searchQuery: string;
+  isSearching?: boolean;
+  searchResults?: FileEntry[];
   sortField: SortField;
   sortAsc: boolean;
   showThumbnails: boolean;
@@ -189,7 +191,7 @@ const sanitizeTabs = (tabs: TabState[]): TabState[] => {
   return tabs.map(tab => {
     // Robustly handle selected paths: never allow virtual "root" in selectable file paths
     const selectedFilePaths = (tab.selectedFilePaths || []).filter(p => p && p !== "root");
-    
+
     // Also clear lastSelectedFilePath if it points to root
     const lastSelectedFilePath = tab.lastSelectedFilePath === "root" ? null : tab.lastSelectedFilePath;
 
@@ -207,9 +209,13 @@ const sanitizeTabs = (tabs: TabState[]): TabState[] => {
           return {
             ...sanitizedPane,
             searchQuery: "",
+            searchResults: []
           };
         }
-        return sanitizedPane;
+        return {
+          ...sanitizedPane,
+          searchResults: Array.isArray(pane.searchResults) ? pane.searchResults : []
+        };
       })
     };
   });
@@ -664,7 +670,7 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
   );
 };
 
-function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, onContextMenu, onSearch, onSort, onToggleThumbnails, refreshCounter, onError, onFocus, isFocused, selectedFilePaths, folderColors, expandedPaths, onToggleExpand, onScrollComplete, systemInfo }: any) {
+function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, onContextMenu, onSearch, onSort, onToggleThumbnails, refreshCounter, onError, onFocus, isFocused, selectedFilePaths, folderColors, expandedPaths, onToggleExpand, onScrollComplete, systemInfo, onDeepSearch }: any) {
   const [drives, setDrives] = useState<FileEntry[]>([]);
   const [isThisPCOpen, setIsThisPCOpen] = useState(true);
   const [metadataMode, setMetadataMode] = useState<"size" | "date">("size");
@@ -743,17 +749,25 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
     >
       <div className="flex flex-col bg-background-main shadow-sm z-10 shrink-0">
         <div className="flex justify-between items-center p-2 border-b border-background-pane">
-          <div className="flex items-center gap-2 overflow-hidden flex-1 group/search relative bg-white/5 rounded px-2">
-            <Search size={12} className="text-muted shrink-0" />
-            <input
-              id={`search-${pane.id}`}
-              name="search-query"
-              type="text"
-              placeholder="Filter current view..."
-              value={pane.searchQuery}
-              onChange={(e) => onSearch(e.target.value)}
-              className="bg-transparent border-none outline-none text-[10px] font-mono text-muted focus:text-primary transition-colors w-full p-0 h-6 placeholder:opacity-30"
-            />
+          <div className={`flex items-center gap-2 overflow-hidden flex-1 group/search relative rounded min-h-[24px] transition-all duration-300 ${pane.isSearching ? 'search-border-animated bg-transparent' : 'bg-white/5 border border-transparent'}`}>
+            <div className={`search-input-wrapper ${pane.isSearching ? 'search-active' : ''}`}>
+              <Search size={12} className={`${pane.isSearching ? 'text-accent-green animate-pulse' : 'text-muted'} shrink-0`} />
+              <input
+                id={`search-${pane.id}`}
+                name="search-query"
+                type="text"
+                placeholder="Filter current view..."
+                value={pane.searchQuery}
+                onChange={(e) => onSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && pane.searchQuery.trim()) {
+                    onDeepSearch(pane.id, pane.path, pane.searchQuery);
+                  }
+                }}
+                className="bg-transparent border-none outline-none text-[10px] font-mono text-muted focus:text-primary transition-colors w-full p-0 h-6 placeholder:opacity-30"
+              />
+            </div>
+            {pane.isSearching && <div className="search-scanner-bar" />}
           </div>
           <button onClick={onClose} className="p-1 hover:bg-accent-red hover:text-background-main rounded opacity-0 group-hover/pane:opacity-100 transition-opacity">
             <X size={12} />
@@ -905,6 +919,55 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
         }}
         onDrop={handlePaneDrop}
       >
+        {pane.searchResults && pane.searchResults.length > 0 && (
+          <div className="mb-6 border-b border-muted/10 pb-4">
+            <div className="flex items-center justify-between px-2 mb-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-accent-green">
+                <Search size={12} /> Search Results ({pane.searchResults.length})
+              </div>
+              <button
+                onClick={() => onSearch("")}
+                className="text-[8px] uppercase font-bold text-muted hover:text-accent-red transition-colors"
+              >
+                Clear Results
+              </button>
+            </div>
+            <div className="space-y-0.5">
+              {pane.searchResults.map((result: FileEntry) => (
+                <TreeItem
+                  key={result.path}
+                  entry={result}
+                  depth={0}
+                  parentPath="search"
+                  onSelect={onSelect}
+                  onPathChange={onPathChange}
+                  activePath={pane.path}
+                  selectedFilePaths={selectedFilePaths}
+                  metadataMode={metadataMode}
+                  onDragStart={() => { }}
+                  onContextMenu={(e: any, target: any) => onContextMenu(e, { type: "tree-item", target })}
+                  searchQuery=""
+                  sortField={pane.sortField}
+                  sortAsc={pane.sortAsc}
+                  refreshCounter={refreshCounter}
+                  onError={onError}
+                  onDrop={onDrop}
+                  dropTargetPath={null}
+                  onDragEnterPath={() => { }}
+                  onDragLeavePath={() => { }}
+                  folderColors={folderColors}
+                  expandedPaths={[]}
+                  onToggleExpand={() => { }}
+                  isFocused={isFocused}
+                  paneId={pane.id}
+                  showThumbnails={pane.showThumbnails}
+                  onScrollComplete={() => { }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="min-w-fit">
           <div
             className={`flex items-center py-1 px-2 hover:bg-background-main cursor-pointer rounded text-xs group mb-1 ${pane.path === "root" ? 'text-accent-green bg-background-main/30' : 'text-muted'}`}
@@ -924,13 +987,13 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
                   key={drive.path}
                   entry={drive}
                   depth={0}
-                  parentPath="root"  // FIX 1: root-level parent
+                  parentPath="root"
                   onSelect={onSelect}
                   onPathChange={onPathChange}
                   activePath={pane.path}
                   selectedFilePaths={selectedFilePaths}
                   metadataMode={metadataMode}
-                  onDragStart={() => { }}  // FIX 3: data is set in TreeItem itself now
+                  onDragStart={() => { }}
                   onContextMenu={(e: any, target: any) => onContextMenu(e, { type: "tree-item", target })}
                   searchQuery={pane.searchQuery}
                   sortField={pane.sortField}
@@ -1131,6 +1194,7 @@ function AppContent() {
   });
   const [clipboard, setClipboard] = useState<ClipboardState | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+  const activeSearchIds = useRef<Record<string, number>>({});
   const [tabs, setTabs] = useState<TabState[]>(() => {
     console.log("App: initializing tabs from localStorage");
     try {
@@ -1444,7 +1508,32 @@ function AppContent() {
     setContextMenu({ ...contextMenu, visible: false });
   };
 
-  // Autosave when anything changes (with a slight delay/cleanup logic)
+  const handleDeepSearch = async (paneId: string, path: string, query: string) => {
+    if (!path || path === "root" || !query.trim()) return;
+
+    // Track unique search ID to allow cancellation/ignoring stale results
+    const searchId = (activeSearchIds.current[paneId] || 0) + 1;
+    activeSearchIds.current[paneId] = searchId;
+
+    setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === paneId ? { ...pp, isSearching: true, searchResults: [] } : pp) } : t));
+
+    try {
+      const results: FileEntry[] = await invoke("search_files", { path, query });
+
+      // Only update state if this is still the active search
+      if (activeSearchIds.current[paneId] === searchId) {
+        setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === paneId ? { ...pp, searchResults: results, isSearching: false } : pp) } : t));
+      }
+    } catch (err) {
+      console.error("Deep search failed:", err);
+      if (activeSearchIds.current[paneId] === searchId) {
+        setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === paneId ? { ...pp, isSearching: false } : pp) } : t));
+        showAlert("Search Error", String(err));
+      }
+    }
+  };
+
+  // Autosave
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -1792,11 +1881,25 @@ function AppContent() {
                     onAdd={() => addPane(activeTabId)}
                     onContextMenu={handleContextMenu}
                     onScrollComplete={handleScrollComplete}
-                    onSearch={(query: string) => setTabs(tabs.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === pane.id ? { ...pp, searchQuery: query } : pp) } : t))}
-                    onSort={(field: SortField) => setTabs(tabs.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === pane.id ? { ...pp, sortField: field, sortAsc: pp.sortField === field ? !pp.sortAsc : true } : pp) } : t))}
-                    onToggleThumbnails={() => setTabs(tabs.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === pane.id ? { ...pp, showThumbnails: !pp.showThumbnails } : pp) } : t))}
+                    onSearch={(query: string) => {
+                      // Increment search ID to cancel any pending deep searches for this pane
+                      const nextId = (activeSearchIds.current[pane.id] || 0) + 1;
+                      activeSearchIds.current[pane.id] = nextId;
+
+                      setTabs(prev => prev.map(t => t.id === activeTabId ? {
+                        ...t,
+                        panes: t.panes.map(pp => pp.id === pane.id ? {
+                          ...pp,
+                          searchQuery: query,
+                          searchResults: (query.length < (pp.searchQuery?.length || 0) || !query) ? [] : pp.searchResults || []
+                        } : pp)
+                      } : t));
+                    }}
+                    onSort={(field: SortField) => setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === pane.id ? { ...pp, sortField: field, sortAsc: pp.sortField === field ? !pp.sortAsc : true } : pp) } : t))}
+                    onToggleThumbnails={() => setTabs(prev => prev.map(t => t.id === activeTabId ? { ...t, panes: t.panes.map(pp => pp.id === pane.id ? { ...pp, showThumbnails: !pp.showThumbnails } : pp) } : t))}
                     refreshCounter={refreshCounter}
                     onError={showAlert}
+                    onDeepSearch={handleDeepSearch}
                     onDrop={(f: FileEntry, p: string, isMove: boolean = false) => {
                       if (!p || p === "root") return;
                       if (f.path === p || p.startsWith(f.path + SEP)) return;

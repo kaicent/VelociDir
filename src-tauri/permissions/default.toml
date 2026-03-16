@@ -13,5 +13,6 @@ commands.allow = [
   "delete_item",
   "create_item",
   "get_file_info",
-  "get_system_info"
+  "get_system_info",
+  "search_files"
 ]
