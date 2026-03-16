@@ -318,6 +318,51 @@ const Modal = ({ state, onClose }: { state: ModalState; onClose: () => void }) =
   );
 };
 
+const ContextMenu = ({ state, children }: { state: ContextMenuState; children: React.ReactNode }) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ x: state.x, y: state.y });
+
+  useEffect(() => {
+    if (menuRef.current && state.visible) {
+      const menuRect = menuRef.current.getBoundingClientRect();
+      const winW = window.innerWidth;
+      const winH = window.innerHeight;
+
+      let x = state.x;
+      let y = state.y;
+
+      // Adjust X if it goes off screen
+      if (x + menuRect.width > winW) {
+        x = winW - menuRect.width - 10;
+      }
+
+      // Adjust Y if it goes off screen
+      if (y + menuRect.height > winH) {
+        y = winH - menuRect.height - 10;
+      }
+
+      // Ensure it doesn't go off the top/left either
+      x = Math.max(10, x);
+      y = Math.max(10, y);
+
+      setPos({ x, y });
+    }
+  }, [state.x, state.y, state.visible]);
+
+  if (!state.visible) return null;
+
+  return (
+    <div
+      ref={menuRef}
+      className="fixed bg-background-pane border border-background-main shadow-2xl rounded p-1 z-[100] min-w-[160px] animate-in fade-in zoom-in-95 duration-75 overflow-hidden"
+      style={{ left: pos.x, top: pos.y }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </div>
+  );
+};
+
 // FIX 2: Visual drop target highlight
 /**
  * Recursive Tree Component
@@ -1153,7 +1198,7 @@ function AppContent() {
   const [renamingName, setRenamingName] = useState("");
   const [focusedPaneId, setFocusedPaneId] = useState<string>("pane1");
   const [resizing, setResizing] = useState<{ tabId: string; paneIdx: number; startX: number; startFlex: number; nextFlex: number } | null>(null);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ x: 0, y: 0, visible: false, type: "tree-item", target: null });
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ x: 0, y: 0, visible: false, type: "pane", target: null });
   const [modal, setModal] = useState<ModalState>({ visible: false, type: "alert", title: "", message: "" });
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1372,7 +1417,6 @@ function AppContent() {
     setContextMenu({ ...contextMenu, visible: false });
   };
 
-  // FIX 4: Centralized terminal open — no more dangling global function
   const openTerminalAt = async (path: string) => {
     if (!path || path === "root") return;
     try {
@@ -1380,6 +1424,23 @@ function AppContent() {
     } catch (err) {
       showAlert("Terminal Error", "Could not open terminal: " + err);
     }
+    setContextMenu({ ...contextMenu, visible: false });
+  };
+
+  const createNewItem = async (parentPath: string, is_dir: boolean) => {
+    if (!parentPath || parentPath === "root") return;
+    const typeLabel = is_dir ? "Folder" : "File";
+    showPrompt(`New ${typeLabel}`, `Enter name for new ${typeLabel.toLowerCase()}:`, `New ${typeLabel}`, async (name) => {
+      if (name) {
+        const fullPath = parentPath.endsWith(SEP) ? `${parentPath}${name}` : `${parentPath}${SEP}${name}`;
+        try {
+          await invoke("create_item", { path: fullPath, isDir: is_dir });
+          setRefreshCounter(prev => prev + 1);
+        } catch (err) {
+          showAlert("Error", `Failed to create ${typeLabel.toLowerCase()}: ` + err);
+        }
+      }
+    });
     setContextMenu({ ...contextMenu, visible: false });
   };
 
@@ -1766,135 +1827,157 @@ function AppContent() {
               </div>
             ))}
           </div>
-        </div>
-
-        {contextMenu.visible && (
-          <div
-            className="fixed bg-background-pane border border-background-main shadow-2xl rounded p-1 z-[100] min-w-[160px] animate-in fade-in zoom-in-95 duration-75 overflow-hidden"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {contextMenu.type === "tree-item" && (
-              <>
-                {contextMenu.target.is_dir && (
-                  <div className="flex gap-1.5 p-2 pb-3 border-b border-background-main mb-1">
-                    {[
-                      { name: 'Purple', color: '#B19CD9' },
-                      { name: 'Blue', color: '#AEC6CF' },
-                      { name: 'Red', color: '#FF6961' },
-                      { name: 'Yellow', color: '#FDFD96' },
-                      { name: 'Pink', color: '#FFB7CE' },
-                      { name: 'Default', color: '' }
-                    ].map(c => (
-                      <button
-                        key={c.name}
-                        onClick={() => {
-                          if (c.color) {
-                            setFolderColors({ ...folderColors, [contextMenu.target.path]: c.color });
-                          } else {
-                            const newColors = { ...folderColors };
-                            delete newColors[contextMenu.target.path];
-                            setFolderColors(newColors);
-                          }
-                          setContextMenu({ ...contextMenu, visible: false });
-                        }}
-                        className="w-4 h-4 rounded-full border border-white/10 hover:scale-125 transition-transform"
-                        title={c.name}
-                        style={{ backgroundColor: c.color || '#A68A61' }}
-                      />
-                    ))}
-                  </div>
-                )}
-                <div
-                  onClick={() => openItem(contextMenu.target.path)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-green"
-                >
-                  <ExternalLink size={12} /> Open / Run
+        </div>        <ContextMenu state={contextMenu}>
+          {contextMenu.type === "tree-item" && contextMenu.target && (
+            <>
+              {contextMenu.target.is_dir && (
+                <div className="flex gap-1.5 p-2 pb-3 border-b border-background-main mb-1">
+                  {[
+                    { name: 'Purple', color: '#B19CD9' },
+                    { name: 'Blue', color: '#AEC6CF' },
+                    { name: 'Red', color: '#FF6961' },
+                    { name: 'Yellow', color: '#FDFD96' },
+                    { name: 'Pink', color: '#FFB7CE' },
+                    { name: 'Default', color: '' }
+                  ].map(c => (
+                    <button
+                      key={c.name}
+                      onClick={() => {
+                        if (c.color) {
+                          setFolderColors({ ...folderColors, [contextMenu.target.path]: c.color });
+                        } else {
+                          const newColors = { ...folderColors };
+                          delete newColors[contextMenu.target.path];
+                          setFolderColors(newColors);
+                        }
+                        setContextMenu({ ...contextMenu, visible: false });
+                      }}
+                      className="w-4 h-4 rounded-full border border-white/10 hover:scale-125 transition-transform"
+                      title={c.name}
+                      style={{ backgroundColor: c.color || '#A68A61' }}
+                    />
+                  ))}
                 </div>
-                <div
-                  onClick={() => runAsAdmin(contextMenu.target.path)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-red"
-                >
-                  <ShieldAlert size={12} /> Run as Admin
-                </div>
-                <div className="h-[1px] bg-muted/10 mx-1 my-1" />
-                <div
-                  onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "copy" }); setContextMenu({ ...contextMenu, visible: false }); }}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                >
-                  <Copy size={12} /> Copy
-                </div>
-                <div
-                  onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "cut" }); setContextMenu({ ...contextMenu, visible: false }); }}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight opacity-70"
-                >
-                  <Copy size={12} /> Cut
-                </div>
-                <div
-                  onClick={() => copyPath(contextMenu.target.path)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight opacity-70"
-                >
-                  <Link2 size={12} /> Copy Path
-                </div>
-                <div
-                  onClick={() => renameItem(contextMenu.target)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                >
-                  <Type size={12} /> Rename
-                </div>
-                <div
-                  onClick={() => deleteItem(contextMenu.target)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-red"
-                >
-                  <Trash2 size={12} /> Delete
-                </div>
-                {contextMenu.target.is_dir && (
+              )}
+              {contextMenu.target.is_dir && (
+                <>
                   <div
-                    onClick={() => addToFavorites(contextMenu.target)}
+                    onClick={() => createNewItem(contextMenu.target.path, true)}
                     className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-yellow"
                   >
-                    <Star size={12} /> Pin to Favorites
+                    <Plus size={12} /> New Folder
                   </div>
-                )}
-              </>
-            )}
+                  <div
+                    onClick={() => createNewItem(contextMenu.target.path, false)}
+                    className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-yellow"
+                  >
+                    <Plus size={12} /> New File
+                  </div>
+                  <div className="h-[1px] bg-muted/10 mx-1 my-1" />
+                </>
+              )}
+              <div
+                onClick={() => openItem(contextMenu.target.path)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-green"
+              >
+                <ExternalLink size={12} /> Open / Run
+              </div>
+              <div
+                onClick={() => runAsAdmin(contextMenu.target.path)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-red"
+              >
+                <ShieldAlert size={12} /> Run as Admin
+              </div>
+              <div className="h-[1px] bg-muted/10 mx-1 my-1" />
+              <div
+                onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "copy" }); setContextMenu({ ...contextMenu, visible: false }); }}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
+              >
+                <Copy size={12} /> Copy
+              </div>
+              <div
+                onClick={() => { setClipboard({ entries: activeTab.selectedFilePaths.length > 0 ? activeTab.selectedFilePaths.map((p: string) => ({ path: p, name: p.split(SEP).pop() || '', is_dir: false, size: 0, modified: 0 })) : [contextMenu.target], action: "cut" }); setContextMenu({ ...contextMenu, visible: false }); }}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight opacity-70"
+              >
+                <Copy size={12} /> Cut
+              </div>
+              <div
+                onClick={() => copyPath(contextMenu.target.path)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight opacity-70"
+              >
+                <Link2 size={12} /> Copy Path
+              </div>
+              <div
+                onClick={() => renameItem(contextMenu.target)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
+              >
+                <Type size={12} /> Rename
+              </div>
+              <div
+                onClick={() => deleteItem(contextMenu.target)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-red"
+              >
+                <Trash2 size={12} /> Delete
+              </div>
+              {contextMenu.target.is_dir && (
+                <div
+                  onClick={() => addToFavorites(contextMenu.target)}
+                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-yellow"
+                >
+                  <Star size={12} /> Pin to Favorites
+                </div>
+              )}
+            </>
+          )}
 
-            {contextMenu.type === "pane" && (
-              <>
-                <div
-                  onClick={() => contextMenu.path && pasteItem(contextMenu.path)}
-                  className={`flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight ${!clipboard || contextMenu.path === "root" ? 'opacity-20 pointer-events-none' : ''}`}
-                >
-                  <Clipboard size={12} /> Paste {clipboard ? `(${clipboard.entries.length} items)` : ''}
-                </div>
-                <div className="h-[1px] bg-muted/10 mx-1 my-1" />
-                <div
-                  onClick={() => contextMenu.path && openTerminalAt(contextMenu.path)}
-                  className={`flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight ${contextMenu.path === "root" ? 'opacity-20 pointer-events-none' : 'opacity-70'}`}
-                >
-                  <Terminal size={12} /> Terminal Here
-                </div>
-              </>
-            )}
+          {contextMenu.type === "pane" && (
+            <>
+              <div
+                onClick={() => contextMenu.path && createNewItem(contextMenu.path, true)}
+                className={`flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-yellow ${contextMenu.path === "root" ? 'opacity-20 pointer-events-none' : ''}`}
+              >
+                <Plus size={12} /> New Folder
+              </div>
+              <div
+                onClick={() => contextMenu.path && createNewItem(contextMenu.path, false)}
+                className={`flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-yellow ${contextMenu.path === "root" ? 'opacity-20 pointer-events-none' : ''}`}
+              >
+                <Plus size={12} /> New File
+              </div>
+              <div className="h-[1px] bg-muted/10 mx-1 my-1" />
+              <div
+                onClick={() => contextMenu.path && pasteItem(contextMenu.path)}
+                className={`flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight ${!clipboard || contextMenu.path === "root" ? 'opacity-20 pointer-events-none' : ''}`}
+              >
+                <Clipboard size={12} /> Paste {clipboard ? `(${clipboard.entries.length} items)` : ''}
+              </div>
+              <div className="h-[1px] bg-muted/10 mx-1 my-1" />
+              <div
+                onClick={() => contextMenu.path && openTerminalAt(contextMenu.path)}
+                className={`flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight ${contextMenu.path === "root" ? 'opacity-20 pointer-events-none' : 'opacity-70'}`}
+              >
+                <Terminal size={12} /> Terminal Here
+              </div>
+            </>
+          )}
 
-            {contextMenu.type === "favorite" && (
-              <>
-                <div
-                  onClick={() => openInNewPane(contextMenu.target.path)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
-                >
-                  <ExternalLink size={12} className="text-accent-green" /> Open in new pane
-                </div>
-                <div
-                  onClick={() => removeFromFavorites(contextMenu.target.path)}
-                  className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-red"
-                >
-                  <Trash2 size={12} /> Unpin
-                </div>
-              </>
-            )}
-          </div>
-        )}
+          {contextMenu.type === "favorite" && contextMenu.target && (
+            <>
+              <div
+                onClick={() => openInNewPane(contextMenu.target.path)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight"
+              >
+                <ExternalLink size={12} className="text-accent-green" /> Open in new pane
+              </div>
+              <div
+                onClick={() => removeFromFavorites(contextMenu.target.path)}
+                className="flex items-center gap-2 p-2 hover:bg-background-main rounded cursor-pointer text-[10px] font-bold uppercase tracking-tight text-accent-red"
+              >
+                <Trash2 size={12} /> Unpin
+              </div>
+            </>
+          )}
+        </ContextMenu>
         <Modal state={modal} onClose={() => setModal({ ...modal, visible: false })} />
       </div>
     );
