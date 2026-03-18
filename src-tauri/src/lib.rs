@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use walkdir::WalkDir;
 use rayon::prelude::*;
 use std::process::Command;
@@ -30,9 +30,18 @@ fn is_valid_path(path: &str) -> bool {
     if path == "root" {
         return false;
     }
-    // Prevent directory traversal attacks
-    if path.contains("..") {
+    
+    // Check for null bytes which can truncate paths in C APIs
+    if path.contains('\0') {
         return false;
+    }
+    
+    // Prevent directory traversal attacks using Path parsing
+    let p = Path::new(path);
+    for component in p.components() {
+        if component == Component::ParentDir {
+            return false;
+        }
     }
     true
 }
@@ -173,12 +182,13 @@ async fn open_terminal(path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
-        // Use single quotes and double-up any existing single quotes to prevent injection in PowerShell
-        let escaped_path = path.replace("'", "''");
+        // Use environment variables to pass the path safely to PowerShell
+        // This avoids any command injection vulnerabilities from quotes or special chars
         Command::new("powershell")
+            .env("VELOCIDIR_TARGET_PATH", &path)
             .arg("-NoExit")
             .arg("-Command")
-            .arg(format!("Set-Location -LiteralPath '{}'", escaped_path))
+            .arg("Set-Location -LiteralPath $env:VELOCIDIR_TARGET_PATH")
             .spawn()
             .map_err(|e| e.to_string())?;
     }
@@ -264,35 +274,14 @@ async fn rename_item(old_path: String, new_path: String) -> Result<(), String> {
 
 /// Opens a file or launches a directory using the system default application.
 #[tauri::command]
-async fn open_item(path: String) -> Result<(), String> {
+async fn open_item(app: tauri::AppHandle, path: String) -> Result<(), String> {
     if !is_valid_path(&path) {
         return Err("Invalid or virtual path".to_string());
     }
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("cmd")
-            .arg("/c")
-            .arg("start")
-            .arg("")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    #[cfg(target_os = "linux")]
-    {
-        Command::new("xdg-open")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_path(path.clone(), None::<&str>)
+        .map_err(|e| e.to_string())
 }
 
 /// Executes a file with elevated (Administrator) privileges on Windows.
@@ -303,11 +292,12 @@ async fn run_as_admin(path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
-        // Properly escape the path for PowerShell
-        let escaped_path = path.replace("'", "''");
+        // Use environment variables to prevent command injection
         Command::new("powershell")
+            .env("VELOCIDIR_TARGET_PATH", &path)
+            .arg("-NoProfile")
             .arg("-Command")
-            .arg(format!("Start-Process -FilePath '{}' -Verb runAs", escaped_path))
+            .arg("Start-Process -FilePath $env:VELOCIDIR_TARGET_PATH -Verb runAs")
             .spawn()
             .map_err(|e| e.to_string())?;
     }
