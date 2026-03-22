@@ -84,9 +84,17 @@
 }
 
 @keyframes knight-rider {
-  0% { left: -100%; }
-  50% { left: 100%; }
-  100% { left: -100%; }
+  0% {
+    left: -100%;
+  }
+
+  50% {
+    left: 100%;
+  }
+
+  100% {
+    left: -100%;
+  }
 }
 
 .search-scanner-bar {
@@ -102,8 +110,13 @@
 }
 
 @keyframes border-rotate {
-  0% { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(360deg); }
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
 
 .search-border-animated {
