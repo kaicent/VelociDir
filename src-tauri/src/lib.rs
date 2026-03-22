@@ -60,8 +60,21 @@ async fn read_directory(path: String) -> Result<Vec<FileEntry>, String> {
     let mut file_entries = Vec::new();
 
     for entry in entries {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let metadata = entry.metadata().map_err(|e| e.to_string())?;
+        let entry = match entry {
+            Ok(e) => e,
+            Err(e) => {
+                println!("Backend: read_directory: skipping unreadable entry: {}", e);
+                continue;
+            }
+        };
+        // Use symlink_metadata to avoid following broken symlinks/shortcuts
+        let metadata = match entry.path().symlink_metadata() {
+            Ok(m) => m,
+            Err(e) => {
+                println!("Backend: read_directory: skipping {:?}: {}", entry.file_name(), e);
+                continue;
+            }
+        };
         let name = entry.file_name().to_string_lossy().to_string();
         let path = entry.path().to_string_lossy().to_string();
 

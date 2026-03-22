@@ -380,6 +380,7 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
   const [children, setChildren] = useState<FileEntry[]>([]);
   const lastRefresh = useRef(refreshCounter);
   const isActive = Array.isArray(selectedFilePaths) && selectedFilePaths.includes(entry.path);
+  const isCurrentFolder = entry.is_dir && entry.path === activePath;
   const isMatch = searchQuery && entry.name.toLowerCase().includes(searchQuery.toLowerCase());
   const isDropTarget = dropTargetPath === entry.path && entry.is_dir;
 
@@ -534,13 +535,14 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
             e.dataTransfer.setData("application/velocidir-multi", JSON.stringify(selectedFilePaths));
           }
 
-          e.dataTransfer.setData("application/json", JSON.stringify(entry));
+          e.dataTransfer.setData("application/velocidir-item", JSON.stringify(entry));
           e.dataTransfer.setData("text/plain", entry.path);
           e.dataTransfer.effectAllowed = "copyMove";
         }}
         onContextMenu={(e) => onContextMenu(e, entry)}
         className={`flex items-center py-1.5 pr-4 hover:bg-background-main cursor-pointer rounded text-sm group transition-all relative select-none
-            ${isActive ? 'bg-background-main/50 text-accent-green' : ''}
+            ${isCurrentFolder ? 'bg-accent-green/10 border-l-2 border-accent-green text-accent-green font-semibold' : ''}
+            ${isActive && !isCurrentFolder ? 'bg-background-main/50 text-accent-green' : ''}
             ${isMatch ? 'bg-accent-yellow/10' : ''}
             ${isDropTarget ? 'ring-1 ring-inset ring-accent-green/60 bg-accent-green/10' : ''}
           `}
@@ -599,7 +601,7 @@ const TreeItem = ({ entry, depth, parentPath = "root", onSelect, onPathChange, a
                 }
                 return;
               }
-              const fileData = JSON.parse(e.dataTransfer.getData("application/json"));
+              const fileData = JSON.parse(e.dataTransfer.getData("application/velocidir-item"));
               if (fileData.path === entry.path || entry.path.startsWith(fileData.path + "\\")) return;
               if (onDrop) onDrop(fileData, entry.path, e.shiftKey);
             } catch (err) {
@@ -724,7 +726,7 @@ function ExplorerPane({ pane, onSelect, onPathChange, onClose, onAdd, onDrop, on
         }
         return;
       }
-      const fileData = JSON.parse(e.dataTransfer.getData("application/json"));
+      const fileData = JSON.parse(e.dataTransfer.getData("application/velocidir-item"));
       console.log("Parsed drop data:", fileData.path);
       if (fileData.path === pane.path || pane.path.startsWith(fileData.path + "\\")) {
         console.warn("Self-drop or nested drop detected in pane drop.");
@@ -1452,7 +1454,7 @@ function AppContent() {
 
   const deleteItem = async (entry: FileEntry) => {
     if (!entry.path || entry.path === "root") return;
-    showConfirm("Delete Item", `Are you sure you want to permanently delete ${entry.name}?`, async () => {
+    showConfirm("Delete Item", `Are you sure you want to move ${entry.name} to the Recycle Bin?`, async () => {
       try {
         await invoke("delete_item", { path: entry.path });
         setRefreshCounter(prev => prev + 1);
@@ -1744,7 +1746,7 @@ function AppContent() {
             onDrop={(e) => {
               e.preventDefault();
               try {
-                const fileData = JSON.parse(e.dataTransfer.getData("application/json"));
+                const fileData = JSON.parse(e.dataTransfer.getData("application/velocidir-item"));
                 if (fileData.is_dir) addToFavorites(fileData);
               } catch (err) { }
             }}
@@ -1760,7 +1762,7 @@ function AppContent() {
                 draggable
                 onDragStart={(e) => {
                   const data = JSON.stringify(fav);
-                  e.dataTransfer.setData("application/json", data);
+                  e.dataTransfer.setData("application/velocidir-item", data);
                   e.dataTransfer.setData("text/plain", fav.path);
                   e.dataTransfer.effectAllowed = "copyMove";
                 }}
